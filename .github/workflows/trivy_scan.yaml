@@ -29,7 +29,7 @@ jobs:
 
       # 5. Scan filesystem (before Docker build) and save JSON report
       - name: Trivy FS scan (before Docker build)
-        uses: aquasecurity/trivy-action@v0.28.0
+        uses: aquasecurity/trivy-action@v0.31.0
         with:
           scan-type: fs
           format: json
@@ -41,7 +41,7 @@ jobs:
 
       # 7. Scan Docker image (after build) and save JSON report
       - name: Trivy Image scan (after Docker build)
-        uses: aquasecurity/trivy-action@v0.28.0
+        uses: aquasecurity/trivy-action@v0.31.0
         with:
           image-ref: flask_docker_app:latest
           format: json
