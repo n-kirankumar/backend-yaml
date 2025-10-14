@@ -15,7 +15,7 @@ jobs:
       - name: Checkout repository
         uses: actions/checkout@v3
 
-      # 2. Install Docker (if needed)
+      # 2. Set up Docker
       - name: Set up Docker
         uses: docker/setup-buildx-action@v3
 
@@ -24,8 +24,8 @@ jobs:
         run: |
           sudo apt-get update
           sudo apt-get install -y wget tar
-          wget https://github.com/aquasecurity/trivy/releases/latest/download/trivy_0.43.2_Linux-64bit.tar.gz
-          tar zxvf trivy_0.43.2_Linux-64bit.tar.gz
+          wget https://github.com/aquasecurity/trivy/releases/download/v0.67.2/trivy_0.67.2_Linux-64bit.tar.gz
+          tar zxvf trivy_0.67.2_Linux-64bit.tar.gz
           sudo mv trivy /usr/local/bin/
 
       # 4. Create report folder
