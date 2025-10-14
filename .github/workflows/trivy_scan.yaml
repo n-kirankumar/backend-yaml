@@ -21,7 +21,7 @@ jobs:
 
       # 3. Install Trivy
       - name: Install Trivy
-        uses: aquasecurity/trivy-action@v0.33.1
+        uses: aquasecurity/trivy-action@v0.28.0
 
       # 4. Create report folder
       - name: Create report folder
@@ -29,7 +29,7 @@ jobs:
 
       # 5. Scan filesystem (before Docker build) and save JSON report
       - name: Trivy FS scan (before Docker build)
-        uses: aquasecurity/trivy-action@v0.33.1
+        uses: aquasecurity/trivy-action@v0.28.0
         with:
           scan-type: fs
           format: json
@@ -41,7 +41,7 @@ jobs:
 
       # 7. Scan Docker image (after build) and save JSON report
       - name: Trivy Image scan (after Docker build)
-        uses: aquasecurity/trivy-action@v0.33.1
+        uses: aquasecurity/trivy-action@v0.28.0
         with:
           image-ref: flask_docker_app:latest
           format: json
