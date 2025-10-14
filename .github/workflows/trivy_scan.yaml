@@ -15,15 +15,13 @@ jobs:
       - name: Checkout repository
         uses: actions/checkout@v3
 
-      # 2. Set up Docker Buildx (needed for Docker builds)
+      # 2. Set up Docker Buildx
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v3
 
       # 3. Install Trivy
       - name: Install Trivy
-        uses: aquasecurity/trivy-action@v1.2.2
-        with:
-          version: '0.44.0'
+        uses: aquasecurity/trivy-action@v0.33.1
 
       # 4. Create report folder
       - name: Create report folder
@@ -31,7 +29,7 @@ jobs:
 
       # 5. Scan filesystem (before Docker build) and save JSON report
       - name: Trivy FS scan (before Docker build)
-        uses: aquasecurity/trivy-action@v1.2.2
+        uses: aquasecurity/trivy-action@v0.33.1
         with:
           scan-type: fs
           format: json
@@ -43,7 +41,7 @@ jobs:
 
       # 7. Scan Docker image (after build) and save JSON report
       - name: Trivy Image scan (after Docker build)
-        uses: aquasecurity/trivy-action@v1.2.2
+        uses: aquasecurity/trivy-action@v0.33.1
         with:
           image-ref: flask_docker_app:latest
           format: json
