@@ -3,9 +3,11 @@ import os
 
 app = Flask(__name__)
 
+
 @app.route('/', methods=['GET'])
 def home():
     return jsonify({"message": "Welcome to Flask with Docker and VS Code!"})
+
 
 @app.route('/user', methods=['POST'])
 def create_user():
@@ -14,6 +16,7 @@ def create_user():
         "status": "User created successfully",
         "user": data
     }), 201
+
 
 if __name__ == "__main__":
     debug_mode = os.getenv("FLASK_DEBUG", "False").lower() == "true"
