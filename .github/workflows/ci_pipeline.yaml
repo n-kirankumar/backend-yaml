@@ -1,4 +1,4 @@
-name: Python + Docker CI/CD Pipeline
+name: Python Backend CI/CD Pipeline
 
 on:
   push:
@@ -13,9 +13,9 @@ jobs:
   ci:
     runs-on: ubuntu-latest
     env:
-      IMAGE_NAME: python-app
+      IMAGE_NAME: python-backend
       IMAGE_TAG: ci
-      DOCKERHUB_REPO: your-dockerhub-username/python-app
+      DOCKERHUB_REPO: your-dockerhub-username/python-backend
 
     steps:
 
@@ -34,17 +34,18 @@ jobs:
         uses: actions/setup-python@v4
         with:
           python-version: 3.11
-          architecture: x64   # explicitly set to x64
+          architecture: x64
 
       - name: Upgrade pip
         run: pip install --upgrade pip
 
-      - name: Install Python Dependencies
+      - name: Install Dependencies
         run: |
+          pip install -r requirements.txt
           pip install --upgrade bandit pytest pytest-cov
 
       #########################
-      # 3️⃣ Security Scan (Bandit)
+      # 3️⃣ Bandit Security Scan
       #########################
       - name: Run Bandit Security Scan
         run: |
@@ -63,7 +64,7 @@ jobs:
       - name: Run Unit Tests with Coverage
         run: |
           mkdir -p reports
-          pytest --cov=. --cov-report json:reports/coverage.json || true
+          pytest tests --cov=. --cov-report json:reports/coverage.json || true
 
       - name: Upload Test Coverage Report
         uses: actions/upload-artifact@v4
@@ -80,8 +81,8 @@ jobs:
       - name: Build Docker Image
         uses: docker/build-push-action@v5
         with:
-          context: ./app
-          file: ./app/Dockerfile
+          context: .
+          file: ./Dockerfile
           push: false
           tags: ${{ env.DOCKERHUB_REPO }}:${{ env.IMAGE_TAG }}
 
@@ -117,7 +118,7 @@ jobs:
       - name: Push Docker Image to Docker Hub
         uses: docker/build-push-action@v5
         with:
-          context: ./app
-          file: ./app/Dockerfile
+          context: .
+          file: ./Dockerfile
           push: true
           tags: ${{ env.DOCKERHUB_REPO }}:${{ env.IMAGE_TAG }}
