@@ -1,96 +1,142 @@
-name: Complete CI Pipeline
+name: Full CI/CD Pipeline
 
 on:
   push:
-    branches: [ main ]
-  pull_request:
-    branches: [ main ]
+    branches: ["main"]   
+    branches: ["main"]
+  workflow_dispatch:
 
 jobs:
-  ci-pipeline:
+  ci:
     runs-on: ubuntu-latest
+    env:
+      IMAGE_NAME: react-app
+      IMAGE_TAG: ci
+      ARTIFACTORY_URL: ghcr.io/${{ github.repository }}
 
     steps:
-      # --------------------------
-      # Stage 1: Checkout code
-      # --------------------------
-      - name: Checkout repository
+      #########################
+      # 1️⃣ Checkout code & setup
+      #########################
+      - name: Checkout full repository
         uses: actions/checkout@v4
-
-      # --------------------------
-      # Stage 2: Setup Python
-      # --------------------------
-      - name: Set up Python
-        uses: actions/setup-python@v5
         with:
-          python-version: '3.10'
+          fetch-depth: 0
 
-      # --------------------------
-      # Stage 3: Install dependencies
-      # --------------------------
-      - name: Install dependencies
-        run: |
-          python -m pip install --upgrade pip
-          pip install -r requirements.txt
-          pip install pytest pytest-cov bandit flake8
-
-      # --------------------------
-      # Stage 4: Linting & Formatting
-      # --------------------------
-      - name: Run Linting (flake8)
-        run: |
-          echo "Running flake8..."
-          flake8 . --count --select=E9,F63,F7,F82 --show-source --statistics
-          echo "Code style check complete."
-
-      # --------------------------
-      # Stage 5: Security Scan (Bandit)
-      # --------------------------
-      - name: Run Bandit (Python security scan)
-        run: |
-          echo "Running Bandit security analysis..."
-          bandit -r . -f txt -o bandit_report.txt
-          cat bandit_report.txt
-
-      # --------------------------
-      # Stage 6: Unit Tests + Coverage
-      # --------------------------
-      - name: Run Unit Tests
-        run: |
-          echo "Running unit tests..."
-          pytest --cov=. --cov-report=term-missing
-
-      # --------------------------
-      # Stage 7: Build Docker Image
-      # --------------------------
-      - name: Build Docker Image
-        run: |
-          echo "Building Docker image..."
-          docker build -t ${{ github.repository }}:latest .
-
-      # --------------------------
-      # Stage 8: Trivy Security Scan (Docker image)
-      # --------------------------
-      - name: Run Trivy image scan
-        uses: aquasecurity/trivy-action@master
+      #########################
+      # 2️⃣ Install dependencies
+      #########################
+      # Node for React / ESLint
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
         with:
-          image-ref: ${{ github.repository }}:latest
-          format: 'table'
-          exit-code: '0'
-          vuln-type: 'os,library'
-          ignore-unfixed: true
+          node-version: 18
 
-      # --------------------------
-      # Stage 9: Push to Docker Hub
-      # --------------------------
-      - name: Log in to Docker Hub
-        uses: docker/login-action@v3
-        with:
-          username: ${{ secrets.DOCKERHUB_USERNAME }}
-          password: ${{ secrets.DOCKERHUB_TOKEN }}
-
-      - name: Push Docker Image
+      - name: Install Node dependencies
         run: |
-          IMAGE_NAME=${{ github.repository }}
-          docker tag $IMAGE_NAME:latest ${{ secrets.DOCKERHUB_USERNAME }}/$IMAGE_NAME:latest
-          docker push ${{ secrets.DOCKERHUB_USERNAME }}/$IMAGE_NAME:latest
+          npm init -y
+          npm install --no-audit --no-fund --save-dev eslint eslint-plugin-react
+
+      # Python for Bandit & tests
+      - name: Setup Python
+        uses: actions/setup-python@v4
+        with:
+          python-version: 3.10
+
+      - name: Install Python dependencies
+        run: |
+          pip install bandit pytest pytest-cov
+
+      #########################
+      # 3️⃣ Static Code Analysis (Linting)
+      #########################
+      - name: Run ESLint and save JSON report
+        run: |
+          mkdir -p reports
+          npx eslint App.jsx -f json -o reports/eslint-report.json || true
+
+      - name: Upload ESLint report
+        uses: actions/upload-artifact@v4
+        with:
+          name: eslint-report
+          path: reports/eslint-report.json
+
+      #########################
+      # 4️⃣ Security Scanning (Bandit / Trivy)
+      #########################
+      - name: Run Bandit security analysis
+        run: |
+          mkdir -p reports
+          bandit -r . -lll -f json -o reports/bandit_report.json || true
+
+      - name: Upload Bandit report
+        uses: actions/upload-artifact@v4
+        with:
+          name: bandit-report
+          path: reports/bandit_report.json
+
+      #########################
+      # 5️⃣ Unit Test & Coverage
+      #########################
+      - name: Run Unit Tests with Coverage
+        run: |
+          mkdir -p reports
+          pytest --cov=. --cov-report json:reports/coverage.json || true
+
+      - name: Upload Test Coverage
+        uses: actions/upload-artifact@v4
+        with:
+          name: test-coverage
+          path: reports/coverage.json
+
+      #########################
+      # 6️⃣ Build Docker Image
+      #########################
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Build Docker image
+        uses: docker/build-push-action@v5
+        with:
+          context: ./app
+          file: ./app/Dockerfile
+          push: false
+          tags: ${{ env.IMAGE_NAME }}:${{ env.IMAGE_TAG }}
+
+      #########################
+      # 7️⃣ Scan Docker Image (Trivy)
+      #########################
+      - name: Install Trivy
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y curl
+          curl -sfL https://raw.githubusercontent.com/aquasecurity/trivy/main/contrib/install.sh | sudo sh -s -- -b /usr/local/bin
+
+      - name: Run Trivy scan
+        run: |
+          mkdir -p reports
+          trivy image --format json --output reports/trivy-image-report.json ${{ env.IMAGE_NAME }}:${{ env.IMAGE_TAG }} || true
+
+      - name: Upload Trivy report
+        uses: actions/upload-artifact@v4
+        with:
+          name: trivy-image-report
+          path: reports/trivy-image-report.json
+
+      #########################
+      # 8️⃣ Push to Artifact Repository (GitHub Container Registry)
+      #########################
+      - name: Log in to GitHub Container Registry
+        uses: docker/login-action@v2
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Push Docker image to GHCR
+        uses: docker/build-push-action@v5
+        with:
+          context: ./app
+          file: ./app/Dockerfile
+          push: true
+          tags: ${{ env.ARTIFACTORY_URL }}/${{ env.IMAGE_NAME }}:${{ env.IMAGE_TAG }}
